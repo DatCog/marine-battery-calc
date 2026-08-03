@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>海事与工业电池放电时间计算器</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- San Francisco / System Font Styles -->
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+  </style>
+</head>
+<body class="bg-[#f5f5f7] text-[#1d1d1f] min-h-screen flex flex-col justify-between p-4 sm:p-8">
+
+  <!-- Main Container -->
+  <main class="max-w-xl mx-auto w-full my-auto">
+    <!-- Header -->
+    <header class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white border border-black/5 shadow-sm mb-4">
+        <svg class="w-6 h-6 text-[#0071e3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-[#1d1d1f]">
+        电池放电时间计算器
+      </h1>
+      <p class="text-sm text-[#86868b] mt-1">工业与海事供电系统估算</p>
+    </header>
+
+    <!-- Main Card -->
+    <div class="bg-white/80 backdrop-blur-xl border border-black/5 rounded-3xl p-6 sm:p-8 shadow-sm">
+      
+      <!-- Input Controls -->
+      <div class="space-y-6">
+        
+        <!-- Capacity -->
+        <div>
+          <label class="block text-xs font-medium text-[#86868b] uppercase tracking-wider mb-2">
+            电池额定容量 (Ah)
+          </label>
+          <div class="relative">
+            <input 
+              type="number" 
+              id="capacity" 
+              placeholder="例如: 100" 
+              class="w-full bg-[#f5f5f7] border border-transparent focus:border-[#0071e3] focus:bg-white text-[#1d1d1f] text-base rounded-xl px-4 py-3 outline-none transition-all duration-200"
+              oninput="calculate()"
+            >
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#86868b]">Ah</span>
+          </div>
+        </div>
+
+        <!-- System Voltage (Conditional for Power Mode) -->
+        <div id="voltageContainer" class="hidden">
+          <label class="block text-xs font-medium text-[#86868b] uppercase tracking-wider mb-2">
+            系统标称电压 (V)
+          </label>
+          <div class="relative">
+            <input 
+              type="number" 
+              id="voltage" 
+              value="24"
+              placeholder="例如: 12, 24, 48" 
+              class="w-full bg-[#f5f5f7] border border-transparent focus:border-[#0071e3] focus:bg-white text-[#1d1d1f] text-base rounded-xl px-4 py-3 outline-none transition-all duration-200"
+              oninput="calculate()"
+            >
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#86868b]">V</span>
+          </div>
+        </div>
+
+        <!-- Load Type Segmented Control -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-xs font-medium text-[#86868b] uppercase tracking-wider">负载模式</label>
+          </div>
+          <div class="grid grid-cols-2 gap-1 p-1 bg-[#f5f5f7] rounded-xl border border-black/5">
+            <button 
+              type="button" 
+              id="modeCurrentBtn"
+              onclick="setLoadMode('current')" 
+              class="py-2 text-xs font-medium rounded-lg transition-all duration-200 bg-white shadow-sm text-[#1d1d1f]"
+            >
+              电流 (A)
+            </button>
+            <button 
+              type="button" 
+              id="modePowerBtn"
+              onclick="setLoadMode('power')" 
+              class="py-2 text-xs font-medium rounded-lg transition-all duration-200 text-[#86868b]"
+            >
+              功率 (W)
+            </button>
+          </div>
+        </div>
+
+        <!-- Load Value Input -->
+        <div>
+          <label id="loadLabel" class="block text-xs font-medium text-[#86868b] uppercase tracking-wider mb-2">
+            负载电流 (A)
+          </label>
+          <div class="relative">
+            <input 
+              type="number" 
+              id="loadValue" 
+              placeholder="例如: 10" 
+              class="w-full bg-[#f5f5f7] border border-transparent focus:border-[#0071e3] focus:bg-white text-[#1d1d1f] text-base rounded-xl px-4 py-3 outline-none transition-all duration-200"
+              oninput="calculate()"
+            >
+            <span id="loadUnit" class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-[#86868b]">A</span>
+          </div>
+        </div>
+
+        <!-- DOD Range Slider -->
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <label class="text-xs font-medium text-[#86868b] uppercase tracking-wider">
+              预计放电深度 (DOD)
+            </label>
+            <span id="dodValueDisplay" class="text-xs font-semibold text-[#1d1d1f]">80%</span>
+          </div>
+          <input 
+            type="range" 
+            id="dodRange" 
+            min="10" 
+            max="100" 
+            value="80" 
+            step="5"
+            class="w-full h-1.5 bg-[#e5e5ea] rounded-lg appearance-none cursor-pointer accent-[#0071e3]"
+            oninput="updateDODDisplay(); calculate();"
+          >
+          <div class="flex justify-between text-[10px] text-[#86868b] mt-1">
+            <span>10% (保守)</span>
+            <span>80% (标准)</span>
+            <span>100% (极限)</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Divider -->
+      <div class="my-8 border-t border-[#e5e5ea]"></div>
+
+      <!-- Output Section -->
+      <div class="text-center">
+        <span class="text-xs font-medium text-[#86868b] uppercase tracking-wider">预计可运行时间</span>
+        
+        <div class="mt-2 mb-4">
+          <div id="resultDisplay" class="text-4xl sm:text-5xl font-semibold tracking-tight text-[#1d1d1f]">
+            --
+          </div>
+        </div>
+
+        <!-- Dynamic Recommendation Pill -->
+        <div id="adviceContainer" class="min-h-[44px] flex items-center justify-center">
+          <p id="adviceText" class="text-xs text-[#86868b] bg-[#f5f5f7] px-4 py-2.5 rounded-full border border-black/5 transition-all duration-200 inline-block">
+            请在上方输入完整参数以开始计算
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer Disclaimer -->
+  <footer class="text-center mt-8 max-w-xl mx-auto">
+    <p class="text-[11px] text-[#86868b] leading-relaxed">
+      本工具计算结果仅供工程参考与初步估算，实际运行时间受环境温度及电池老化程度影响，不作为最终交付凭证。
+    </p>
+  </footer>
+
+  <!-- Calculation Logic -->
+  <script>
+    let currentMode = 'current'; // 'current' or 'power'
+
+    function setLoadMode(mode) {
+      currentMode = mode;
+      const currentBtn = document.getElementById('modeCurrentBtn');
+      const powerBtn = document.getElementById('modePowerBtn');
+      const voltageContainer = document.getElementById('voltageContainer');
+      const loadLabel = document.getElementById('loadLabel');
+      const loadUnit = document.getElementById('loadUnit');
+
+      if (mode === 'current') {
+        currentBtn.className = 'py-2 text-xs font-medium rounded-lg transition-all duration-200 bg-white shadow-sm text-[#1d1d1f]';
+        powerBtn.className = 'py-2 text-xs font-medium rounded-lg transition-all duration-200 text-[#86868b]';
+        voltageContainer.classList.add('hidden');
+        loadLabel.textContent = '负载电流 (A)';
+        loadUnit.textContent = 'A';
+      } else {
+        powerBtn.className = 'py-2 text-xs font-medium rounded-lg transition-all duration-200 bg-white shadow-sm text-[#1d1d1f]';
+        currentBtn.className = 'py-2 text-xs font-medium rounded-lg transition-all duration-200 text-[#86868b]';
+        voltageContainer.classList.remove('hidden');
+        loadLabel.textContent = '负载功率 (W)';
+        loadUnit.textContent = 'W';
+      }
+
+      calculate();
+    }
+
+    function updateDODDisplay() {
+      const dodVal = document.getElementById('dodRange').value;
+      document.getElementById('dodValueDisplay').textContent = `${dodVal}%`;
+    }
+
+    function calculate() {
+      const capacity = parseFloat(document.getElementById('capacity').value);
+      const loadValue = parseFloat(document.getElementById('loadValue').value);
+      const dod = parseFloat(document.getElementById('dodRange').value) / 100;
+      const voltage = parseFloat(document.getElementById('voltage').value);
+
+      const resultDisplay = document.getElementById('resultDisplay');
+      const adviceText = document.getElementById('adviceText');
+
+      // Validation
+      if (!capacity || capacity <= 0 || !loadValue || loadValue <= 0) {
+        resultDisplay.textContent = '--';
+        adviceText.textContent = '请在上方输入完整参数以开始计算';
+        adviceText.className = 'text-xs text-[#86868b] bg-[#f5f5f7] px-4 py-2.5 rounded-full border border-black/5 transition-all duration-200 inline-block';
+        return;
+      }
+
+      let dischargeCurrent = 0;
+
+      if (currentMode === 'current') {
+        dischargeCurrent = loadValue;
+      } else {
+        if (!voltage || voltage <= 0) {
+          resultDisplay.textContent = '--';
+          adviceText.textContent = '请输入有效系统电压';
+          return;
+        }
+        dischargeCurrent = loadValue / voltage;
+      }
+
+      if (dischargeCurrent <= 0) {
+        resultDisplay.textContent = '--';
+        return;
+      }
+
+      // Calculate effective discharge time
+      const usableCapacity = capacity * dod;
+      const hoursDecimal = usableCapacity / dischargeCurrent;
+
+      // Format Time
+      const totalMinutes = Math.round(hoursDecimal * 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+
+      let timeText = '';
+      if (hours > 0) {
+        timeText += `${hours} <span class="text-xl sm:text-2xl font-normal text-[#86868b]">小时</span> `;
+      }
+      if (minutes > 0 || hours === 0) {
+        timeText += `${minutes} <span class="text-xl sm:text-2xl font-normal text-[#86868b]">分钟</span>`;
+      }
+
+      resultDisplay.innerHTML = timeText;
+
+      // Provide Engineering Recommendations based on C-Rate
+      const cRate = dischargeCurrent / capacity;
+
+      if (cRate > 1.0) {
+        adviceText.textContent = '注意：高倍率放电（>1C）可能显著缩短电池使用寿命并引发过热。';
+        adviceText.className = 'text-xs text-[#d97706] bg-[#fef3c7] px-4 py-2.5 rounded-full border border-amber-200 transition-all duration-200 inline-block';
+      } else if (dod > 0.9) {
+        adviceText.textContent = '建议：深度放电（>90%）会加速电池老化，建议保留适量备用余量。';
+        adviceText.className = 'text-xs text-[#d97706] bg-[#fef3c7] px-4 py-2.5 rounded-full border border-amber-200 transition-all duration-200 inline-block';
+      } else if (cRate <= 0.2) {
+        adviceText.textContent = '状态良好：低倍率放电模式，有利于保持电池最佳循坏寿命。';
+        adviceText.className = 'text-xs text-[#059669] bg-[#d1fae5] px-4 py-2.5 rounded-full border border-emerald-200 transition-all duration-200 inline-block';
+      } else {
+        adviceText.textContent = '参数正常：当前放电配置符合工业海事系统标准运营范围。';
+        adviceText.className = 'text-xs text-[#1d1d1f] bg-[#f5f5f7] px-4 py-2.5 rounded-full border border-black/5 transition-all duration-200 inline-block';
+      }
+    }
+  </script>
+
+</body>
+</html>
