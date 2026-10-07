@@ -1,0 +1,31 @@
+name: Inject YOSUR MARINE footer
+
+on:
+  push:
+    paths:
+      - '.github/workflows/inject-footer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  inject:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject footer into index.html
+        run: python3 .github/scripts/inject_footer.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+          else
+            git commit -m "Add YOSUR MARINE company info and link to yosurmarine.com"
+            git push
+          fi
