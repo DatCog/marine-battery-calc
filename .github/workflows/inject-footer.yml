@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Inject footer into index.html
         run: python3 .github/scripts/inject_footer.py
@@ -25,7 +27,8 @@ jobs:
           git add -A
           if git diff --cached --quiet; then
             echo "nothing to commit"
-          else
-            git commit -m "Add YOSUR MARINE company info and link to yosurmarine.com"
-            git push
+            exit 0
           fi
+          git commit -m "Add YOSUR MARINE company info and link to yosurmarine.com"
+          git pull --rebase origin main
+          git push
